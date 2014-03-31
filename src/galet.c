@@ -1,10 +1,14 @@
 #include "galet.h"
 
+static int SCREEN_WIDTH = 144;
+
+static int SCREEN_HEIGHT = 168;
+
 static Window *window;
 
 static Layer *window_layer;
 
-static TextLayer *text_layer;
+static TextLayer *clock_layer;
 
 static GRect battery_rect;
 
@@ -37,7 +41,10 @@ void handle_battery_change(BatteryChargeState state) {
 }
 
 static void handle_minute_tick(struct tm *tick_time, TimeUnits units_changed) {
-    layer_mark_dirty(window_layer);
+    static char time_text[] = "00:00";
+    char *time_format = clock_is_24h_style() ? "%R" : "%I:%M";
+    strftime(time_text, sizeof(time_text), time_format, tick_time);
+    text_layer_set_text(clock_layer, time_text);
 }
 
 static void handle_connectivity_changes(bool connected) {
@@ -62,6 +69,7 @@ static void window_update_proc(Layer *layer, GContext *ctx) {
     graphics_context_set_stroke_color(ctx, GColorWhite);
     draw_battery(ctx);    
     draw_connectivity_icon(ctx);
+    //draw_clock(ctx);
 }
 
 int main(void) {
@@ -81,11 +89,19 @@ void init(void) {
     // Check connection and subscribe
     isConnected = bluetooth_connection_service_peek();
     bluetooth_connection_service_subscribe(handle_connectivity_changes);	
+    // Init clock date layer
+    clock_layer = text_layer_create(GRect(10, 12, SCREEN_WIDTH - 10, 49));
+    text_layer_set_text_color(clock_layer, GColorWhite);
+    text_layer_set_background_color(clock_layer, GColorBlack);
+    text_layer_set_font(clock_layer, fonts_get_system_font(FONT_KEY_ROBOTO_BOLD_SUBSET_49));
+    layer_add_child(window_layer, text_layer_get_layer(clock_layer));
+    tick_timer_service_subscribe(MINUTE_UNIT, handle_minute_tick);
 }
 
 void deinit(void) {
     window_destroy(window);
     battery_state_service_unsubscribe();
     bluetooth_connection_service_unsubscribe();	
+    tick_timer_service_unsubscribe();
 }
 
