@@ -10,13 +10,19 @@ static GRect battery_rect;
 
 static bool wasCharging = false;
 
+static bool isConnected = false;
+
 void draw_battery_percent(GContext *ctx, BatteryChargeState state) {
-  graphics_context_set_fill_color(ctx, GColorWhite);
-  graphics_context_set_stroke_color(ctx, GColorWhite);
     if (state.is_charging)
         graphics_fill_rect(ctx, GRect(1, 1, 10, 10), 0, GCornerNone);
     graphics_draw_rect(ctx, GRect(12, 1, 120, 10));
     graphics_fill_rect(ctx, GRect(14, 3, 1.08 * state.charge_percent, 6), 0, GCornerNone);
+}
+
+void draw_connectivity_icon(GContext *ctx) {
+    if (isConnected) {
+        graphics_fill_rect(ctx, GRect(133, 1, 10, 10), 0, GCornerNone);
+    }
 }
 
 void draw_battery(GContext *ctx) {
@@ -34,16 +40,28 @@ static void handle_minute_tick(struct tm *tick_time, TimeUnits units_changed) {
     layer_mark_dirty(window_layer);
 }
 
+static void handle_connectivity_changes(bool connected) {
+    isConnected = connected;
+    layer_mark_dirty(window_layer);
+    // Warn the user in case of missing phone
+    if (!connected) 
+        vibes_short_pulse();
+}
+
 static void clean_screen(GContext *ctx) {
-  GRect bounds = layer_get_bounds(window_layer);
-  graphics_context_set_fill_color(ctx, GColorBlack);
-  graphics_context_set_stroke_color(ctx, GColorBlack);
-  graphics_fill_rect(ctx, bounds, 0, GCornerNone);
+    GRect bounds = layer_get_bounds(window_layer);
+    graphics_context_set_fill_color(ctx, GColorBlack);
+    graphics_context_set_stroke_color(ctx, GColorBlack);
+    graphics_fill_rect(ctx, bounds, 0, GCornerNone);
 }
 
 static void window_update_proc(Layer *layer, GContext *ctx) {
     clean_screen(ctx);
+    // Fill with white
+    graphics_context_set_fill_color(ctx, GColorWhite);
+    graphics_context_set_stroke_color(ctx, GColorWhite);
     draw_battery(ctx);    
+    draw_connectivity_icon(ctx);
 }
 
 int main(void) {
@@ -58,11 +76,16 @@ void init(void) {
     window_stack_push(window, false /* animated */);
     window_layer = window_get_root_layer(window);
     layer_set_update_proc(window_layer, window_update_proc);
+    // Subscribe for battery updates
     battery_state_service_subscribe(handle_battery_change);
+    // Check connection and subscribe
+    isConnected = bluetooth_connection_service_peek();
+    bluetooth_connection_service_subscribe(handle_connectivity_changes);	
 }
 
 void deinit(void) {
     window_destroy(window);
-    battery_state_service_subscribe(handle_battery_change);
+    battery_state_service_unsubscribe();
+    bluetooth_connection_service_unsubscribe();	
 }
 
