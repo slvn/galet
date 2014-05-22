@@ -10,6 +10,8 @@ static Layer *window_layer;
 
 static TextLayer *clock_layer;
 
+static TextLayer *date_layer;
+
 static GRect battery_rect;
 
 static bool wasCharging = false;
@@ -45,6 +47,10 @@ static void handle_minute_tick(struct tm *tick_time, TimeUnits units_changed) {
     char *time_format = clock_is_24h_style() ? "%R" : "%I:%M";
     strftime(time_text, sizeof(time_text), time_format, tick_time);
     text_layer_set_text(clock_layer, time_text);
+    // Update date
+    static char date_text[] = "Xxxxxxxxx 00";
+    strftime(date_text, sizeof(date_text), "%B %e", tick_time);
+    text_layer_set_text(date_layer, date_text);
 }
 
 static void handle_connectivity_changes(bool connected) {
@@ -89,13 +95,21 @@ void init(void) {
     // Check connection and subscribe
     isConnected = bluetooth_connection_service_peek();
     bluetooth_connection_service_subscribe(handle_connectivity_changes);	
-    // Init clock date layer
+    // Init clock layer
     clock_layer = text_layer_create(GRect(10, 12, SCREEN_WIDTH - 10, 49));
     text_layer_set_text_color(clock_layer, GColorWhite);
     text_layer_set_background_color(clock_layer, GColorBlack);
     text_layer_set_font(clock_layer, fonts_get_system_font(FONT_KEY_ROBOTO_BOLD_SUBSET_49));
     layer_add_child(window_layer, text_layer_get_layer(clock_layer));
     tick_timer_service_subscribe(MINUTE_UNIT, handle_minute_tick);
+
+    // Init date layer
+    date_layer = text_layer_create(GRect(10, 68, SCREEN_WIDTH - 20, 75));
+    text_layer_set_text_color(date_layer, GColorWhite);
+    text_layer_set_background_color(date_layer, GColorBlack);
+    text_layer_set_font(date_layer, fonts_get_system_font(FONT_KEY_ROBOTO_CONDENSED_21));
+    text_layer_set_text_alignment(date_layer, GTextAlignmentRight);
+    layer_add_child(window_layer, text_layer_get_layer(date_layer));
 }
 
 void deinit(void) {
