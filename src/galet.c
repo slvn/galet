@@ -87,6 +87,7 @@ int main(void) {
 
 void init(void) {
     window = window_create();
+    window_set_fullscreen(window, true);
     window_stack_push(window, false /* animated */);
     window_layer = window_get_root_layer(window);
     layer_set_update_proc(window_layer, window_update_proc);
