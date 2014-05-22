@@ -24,7 +24,7 @@ void draw_battery_percent(GContext *ctx, BatteryChargeState state) {
 }
 
 void draw_connectivity_icon(GContext *ctx) {
-    if (isConnected) {
+    if (!isConnected) {
         graphics_fill_rect(ctx, GRect(133, 1, 10, 10), 0, GCornerNone);
     }
 }
